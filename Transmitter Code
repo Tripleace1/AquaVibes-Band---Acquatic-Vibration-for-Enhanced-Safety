@@ -1,0 +1,24 @@
+#include <SPI.h>
+#include <RF24.h>
+
+RF24 radio(2, 15); // CE, CSN pins on ESP8266
+
+void setup() {
+  Serial.begin(115200);
+  radio.begin();
+  radio.openWritingPipe(0xF0F0F0E1LL); // Set the address to send data to
+  radio.setPALevel(RF24_PA_HIGH); // Set the power amplifier level (you can adjust this)
+}
+
+void loop() {
+  char text[] = "Hello, NRF24L01!";
+  bool success = radio.write(&text, sizeof(text));
+
+  if (success) {
+    Serial.println("Message sent successfully");
+  } else {
+    Serial.println("Message transmission failed");
+  }
+
+  delay(1000); // Send the message every 1 second
+}
