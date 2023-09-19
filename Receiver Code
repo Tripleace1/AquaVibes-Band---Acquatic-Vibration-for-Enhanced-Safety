@@ -1,0 +1,53 @@
+#include <SPI.h>
+#include <RF24.h>
+
+RF24 radio(2, 15); // CE, CSN pins on ESP8266
+int rssi;
+bool motorActive = false; // Flag to track motor state
+const int motorPin = 5;  // GPIO pin connected to the motor (adjust as needed)
+
+// RSSI to distance calibration parameters (you will need to calibrate these)
+int rssiAt1Meter = -45; // RSSI value at 1 meter
+float signalLossExponent = 2.0; // Signal loss exponent (free space path loss exponent)
+
+void setup() {
+  Serial.begin(115200);
+  radio.begin();
+  radio.openReadingPipe(1, 0xF0F0F0E1LL); // Set the address to listen for data
+  radio.startListening();
+
+  pinMode(motorPin, OUTPUT);
+  digitalWrite(motorPin, LOW); // Ensure the motor is initially off
+}
+
+void loop() {
+  if (radio.available()) {
+    char text[32] = "";
+    radio.read(&text, sizeof(text));
+
+    // Read and calculate RSSI
+    rssi = radio.RSSI();
+
+    // Estimate distance based on RSSI and calibration parameters
+    float distance = pow(10, ((rssiAt1Meter - rssi) / (10 * signalLossExponent)));
+
+    Serial.print("Received: ");
+    Serial.print(text);
+    Serial.print(" - RSSI: ");
+    Serial.print(rssi);
+    Serial.print(" dBm - Estimated Distance: ");
+    Serial.print(distance);
+    Serial.println(" meters");
+
+    // Check if the distance is less than 1 meter and activate the motor
+    if (distance < 1.0 && !motorActive) {
+      digitalWrite(motorPin, HIGH); // Turn on the motor
+      motorActive = true;
+      Serial.println("Motor activated");
+    } else if (distance >= 1.0 && motorActive) {
+      digitalWrite(motorPin, LOW); // Turn off the motor
+      motorActive = false;
+      Serial.println("Motor deactivated");
+    }
+  }
+}
